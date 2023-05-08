@@ -2,9 +2,14 @@ from enum import Enum
 import random
 from mpi4py import MPI
 import time
+import psutil
 
 
-# mpiexec -n 5 python main.py
+p = psutil.Process()
+p.cpu_affinity([0, 1, 2, 3, 4, 5, 6, 7])
+
+
+# mpiexec -n 8 python main.py
 
 
 comm = MPI.COMM_WORLD
@@ -22,7 +27,7 @@ class Move(Enum):
 rows = 6
 columns = 7
 
-calculate_depth = 5   # minimum 6
+calculate_depth = 5   # minimum 5
 
 do_deepest_print = False
 do_deep_print = False
@@ -281,8 +286,9 @@ def calculate_comp_move(matrix):
         sent_task_counter = sent_task_counter + 1
         worker_process_counter = worker_process_counter + 1
 
-    max_grandchild_matrix_quality = -1
-    best_grandchild_matrices = []
+    child_to_grandchild_matrix_quality_mapping = {}
+    for child_matrix in child_matrices:
+        child_to_grandchild_matrix_quality_mapping[matrix_to_string(child_matrix)] = []
 
     worker_process_counter = 0
     received_task_counter = 0
@@ -293,12 +299,9 @@ def calculate_comp_move(matrix):
 
             (grandchild_matrix_quality, string_grandchild_matrix) = comm.recv(source=worker_process_counter + 1)
             deep_print("Process 0 received from process " + str(worker_process_counter + 1) + ".", 2)
-            grandchild_matrix = string_to_matrix(string_grandchild_matrix)
-            if grandchild_matrix_quality > max_grandchild_matrix_quality:
-                max_grandchild_matrix_quality = grandchild_matrix_quality
-                best_grandchild_matrices = [grandchild_matrix]
-            elif grandchild_matrix_quality == max_grandchild_matrix_quality:
-                best_grandchild_matrices.append(grandchild_matrix)
+            child_matrix = grandchild_to_child_matrix_mapping[string_grandchild_matrix]
+            string_child_matrix = matrix_to_string(child_matrix)
+            child_to_grandchild_matrix_quality_mapping[string_child_matrix].append(grandchild_matrix_quality)
 
             received_task_counter = received_task_counter + 1
             deep_print("The workers have finished " + str(received_task_counter) + " tasks.", 1)
@@ -315,14 +318,23 @@ def calculate_comp_move(matrix):
 
     deep_print("The workers have finished all tasks.", 1)
 
-    deep_print("Best grandchild matrices are: ", 2);
-    for best_grandchild_matrix in best_grandchild_matrices:
-        deep_print(matrix_to_string(best_grandchild_matrix), 2)
-        deep_print("__________________________", 2)
+    least_worst_grandchild_quality = -1
+    least_worst_string_children = []
 
-    decided_grandchild_matrix = random.choice(best_grandchild_matrices)
+    for string_child_matrix in child_to_grandchild_matrix_quality_mapping:
+        grandchildren_qualities = child_to_grandchild_matrix_quality_mapping[string_child_matrix]
+        if len(grandchildren_qualities) == 0:
+            worst_grandchild_quality = 0
+        else:
+            worst_grandchild_quality = min(grandchildren_qualities)
+        if worst_grandchild_quality > least_worst_grandchild_quality:
+            least_worst_grandchild_quality = worst_grandchild_quality
+            least_worst_string_children = [string_child_matrix]
+        elif worst_grandchild_quality == least_worst_grandchild_quality:
+            least_worst_string_children.append(string_child_matrix)
 
-    decided_child_matrix = grandchild_to_child_matrix_mapping[matrix_to_string(decided_grandchild_matrix)]
+    decided_string_child_matrix = random.choice(least_worst_string_children)
+    decided_child_matrix = string_to_matrix(decided_string_child_matrix)
 
     end_time = time.time()
     elapsed_time = end_time - start_time
