@@ -230,7 +230,7 @@ def calculate_matrix_quality(matrix, whose_move, depth):
     if num_of_child_matrices != 0:
         return sum_of_child_matrices_qualities / num_of_child_matrices
     else:
-        return 0
+        return -1
 
 
 def calculate_comp_move(matrix):
@@ -396,12 +396,3 @@ else:
         comm.send((my_matrix_quality, matrix_to_string(my_matrix)), dest=0)
 
 
-
-# averages calculated based on the first 5 moves of the average game
-# 8 processes -> 2.3751, 2.3862, 2.244 -> 2.3351
-# 7 processes -> 2.3899, 2.7768, 2.303 -> 2.4899
-# 6 processes -> 2.6628, 2.7692, 2.2105 -> 2.5475
-# 5 processes -> 3.0623, 2.9404, 2.4704 -> 2.8243
-# 4 processes -> 3.0422, 3.8109, 3.0105 -> 3.2878
-# 3 processes -> 6.1049, 5.6852, 4.9722 -> 5.5874
-# 2 processes -> 8.9684, 9.1067, 7.0155 -> 8.3635
